@@ -176,7 +176,8 @@ void shift(int op, struct array_struct *pixelArray, int count, int size, int col
    
     for (int i = 0; i < LED_COUNT; i++) {
 	ledstring.channel[0].leds[i] = bgcolor;
-	
+	ledstring.channel[0].leds[pixelArray[i].index] = 0x000000;
+	ws2811_render(&ledstring);
 	ledstring.channel[0].leds[pixelArray[i].index] = color;
 	ws2811_render(&ledstring);
 			
@@ -188,8 +189,73 @@ void shift(int op, struct array_struct *pixelArray, int count, int size, int col
 
 }
 
-//void section()
+void group(int op, struct array_struct *pixelArray, int count, int size, int colorArray[], int secPart, int rlS, int offset)
+{
+    int extr1;
+    int extr2;
+    
+    switch (op) {
+	case 1:
+	    qsort(pixelArray, count, size, comparearrayYASC);
+	    extr1 = pixelArray[0].posY;
+	    extr2 = pixelArray[count-1].posY;
+	    
+	    break;
+	case 2:
+	    qsort(pixelArray, count, size, comparearrayXASC);
+	    extr1 = pixelArray[0].posX;
+	    extr2 = pixelArray[count-1].posX;
+	    
+	    break;
 
+    }
+    
+    //take first and last sorted to partition
+    
+    int avgTree;
+    avgTree = abs(extr1-extr2);
+    
+    int subAvg;
+    // / is js floor division in c
+    subAvg = avgTree / secPart;
+    
+    for (int i = 0; i<LED_COUNT; i++) {
+	if (op == 1) {
+	    for (int j = 0; j<secPart; j++) {		
+		if (pixelArray[i].posY<pixelArray[0].posY+(j+1)*subAvg) {
+		    if (pixelArray[i].posY>=pixelArray[0].posY+(j)*subAvg) {
+			ledstring.channel[0].leds[pixelArray[i].index] = colorArray[(j+offset)%3];
+			ws2811_render(&ledstring);			
+		    }
+		}
+	    }
+	}
+	    
+	else if (op == 2) {
+	    for (int j = 0; j<secPart; j++) {
+		if (pixelArray[i].posX<pixelArray[0].posX+(j+1)*subAvg) {
+		    if (pixelArray[i].posX>pixelArray[0].posX+(j)*subAvg) {
+			ledstring.channel[0].leds[pixelArray[i].index] = colorArray[(j+offset)%3];
+			ws2811_render(&ledstring);
+		    }
+		}
+	    }
+	}
+    }
+}
+
+void bams (int mlS1, int mlS2, int color) {
+    
+    for (int i = 0; i<LED_COUNT; i++) 
+	ledstring.channel[0].leds[i] = 0x000000;
+	ws2811_render(&ledstring);
+    
+    usleep(mlS1);
+    for (int i = 0; i<LED_COUNT; i++) 
+	ledstring.channel[0].leds[i] = color;
+	ws2811_render(&ledstring);
+    usleep(mlS2);
+}
 
 int main()
 {
@@ -197,6 +263,7 @@ int main()
     int avgY[LED_COUNT];
     size_t size;
     size_t count;
+    int offset = 0;
 
     getInfo(avgX,avgY);
     
@@ -215,11 +282,18 @@ int main()
     
     if (ws2811_init(&ledstring))
         return -1;
-	    
-    while (1) {
     
-	shift(2,pixelArray,count,size,0x00FF00,1000,0x000005);
-	shift(3,pixelArray,count,size,0xFF0000,1000,0x000005);
+    int colorArr[3] = {0x00FF00,0xFF0000,0x0000FF};
+    
+    while (1) {
+	
+	bams(1000000,500000,0x00FF00);
+	
+	//group(2,pixelArray,count,size,colorArr,2,1,offset);
+	//offset = offset+1;
+	
+	//shift(2,pixelArray,count,size,0x00FF00,1000,0x000005);
+	//shift(3,pixelArray,count,size,0xFF0000,1000,0x000005);
     }
     
     //while (flag = true) {
